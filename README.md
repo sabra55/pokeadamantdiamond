@@ -1,4 +1,4 @@
-# Pokémon AdamantDiamond Version and LustrousPearl Version
+# Pokémon AdamantDiamond and LustrousPearl Versions
 
 This repository houses the source code of Pokémon AdamantDiamond and LustrousPearl.
 

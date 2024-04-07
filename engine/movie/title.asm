@@ -89,9 +89,14 @@ _TitleScreen:
 	xor a
 	ldh [rVBK], a
 
-; Decompress logo
-	ld hl, TitleLogoGFX
+; Decompress Pokemon logo
+	ld hl, TitlePokemonGFX
 	ld de, vTiles1
+	call Decompress
+
+; Decompress version-specific logo
+	ld hl, TitleLogoGFX
+	ld de, vTiles2
 	call Decompress
 
 ; Decompress background crystal
@@ -359,8 +364,16 @@ AnimateTitleCrystal:
 TitleSuicuneGFX:
 INCBIN "gfx/title/suicune.2bpp.lz"
 
+TitlePokemonGFX:
+INCBIN "gfx/title/logo.2bpp.lz"
+
 TitleLogoGFX:
-INCBIN "gfx/title/logo_version.2bpp.lz"
+if DEF(_DIAMOND)
+INCBIN "gfx/title/logo_diamond.2bpp.lz"
+endc
+if DEF(_PEARL)
+INCBIN "gfx/title/logo_pearl.2bpp.lz"
+endc
 
 TitleCrystalGFX:
 INCBIN "gfx/title/crystal.2bpp.lz"

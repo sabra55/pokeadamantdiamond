@@ -1,13 +1,15 @@
-NAME := polishedcrystal
+NAME := pokeadlp
 MODIFIERS :=
-VERSION := 3.0.0-beta
+VERSION := 1.0.0-beta
 
-ROM_NAME = $(NAME)$(MODIFIERS)-$(VERSION)
+ROM_NAME_D = pokeadamantdiamond
+ROM_NAME_P = pokelustrouspearl
 EXTENSION := gbc
 
-TITLE := PKPCRYSTAL
-MCODE := PKPC
-ROMVERSION := 0x30
+TITLE_D := PM_ADMD
+TITLE_P := PM_LPRL
+MCODE := ADLP
+ROMVERSION := 0x00
 
 FILLER := 0xff
 
@@ -21,11 +23,14 @@ Q :=
 
 .SECONDEXPANSION:
 
-RGBASM_FLAGS     = -E -Q8 -P includes.asm -Weverything -Wnumeric-string=2 -Wtruncation=1
-RGBASM_VC_FLAGS  = $(RGBASM_FLAGS) -DVIRTUAL_CONSOLE
-RGBLINK_FLAGS    = -M -n $(ROM_NAME).sym    -m $(ROM_NAME).map    -p $(FILLER)
+RGBASM_FLAGS_D   = -E -Q12 -P includes.asm -Weverything -Wnumeric-string=2 -Wtruncation=1 -D _DIAMOND
+RGBASM_FLAGS_P   = -E -Q12 -P includes.asm -Weverything -Wnumeric-string=2 -Wtruncation=1 -D _PEARL
+RGBASM_VC_FLAGS  = $(RGBASM_FLAGS_D) -DVIRTUAL_CONSOLE
+RGBLINK_FLAGS_D  = -M -n $(ROM_NAME_D).sym  -m $(ROM_NAME_D).map  -p $(FILLER)
+RGBLINK_FLAGS_P  = -M -n $(ROM_NAME_P).sym  -m $(ROM_NAME_P).map  -p $(FILLER)
 RGBLINK_VC_FLAGS = -M -n $(ROM_NAME)_vc.sym -m $(ROM_NAME)_vc.map -p $(FILLER)
-RGBFIX_FLAGS     = -csjv -t $(TITLE) -i $(MCODE) -n $(ROMVERSION) -p $(FILLER) -k 01 -l 0x33 -m 0x10 -r 3
+RGBFIX_FLAGS_D   = -csjv -t $(TITLE_D) -i $(MCODE) -n $(ROMVERSION) -p $(FILLER) -k 01 -l 0x33 -m 0x10 -r 5
+RGBFIX_FLAGS_P   = -csjv -t $(TITLE_P) -i $(MCODE) -n $(ROMVERSION) -p $(FILLER) -k 01 -l 0x33 -m 0x10 -r 5
 
 ifeq ($(filter faithful,$(MAKECMDGOALS)),faithful)
 MODIFIERS := $(MODIFIERS)-faithful
@@ -84,16 +89,21 @@ rom_obj := \
 	gfx/items.o \
 	gfx/misc.o
 
-crystal_obj    := $(rom_obj:.o=.o)
+diamond_obj    := $(rom_obj:.o=_diamond.o)
+pearl_obj      := $(rom_obj:.o=_pearl.o)
 crystal_vc_obj :=$(rom_obj:.o=_vc.o)
 
 .SUFFIXES:
 .PHONY: clean tidy crystal faithful nortc pocket debug monochrome freespace tools bsp huffman vc
 .PRECIOUS: %.2bpp %.1bpp
 .SECONDARY:
-.DEFAULT_GOAL: crystal
+.DEFAULT_GOAL: noir
 
-crystal: $$(ROM_NAME).$$(EXTENSION)
+all: diamond pearl
+
+diamond: ${ROM_NAME_D}.gbc
+pearl: ${ROM_NAME_P}.gbc
+crystal: diamond pearl
 faithful: crystal
 nortc: crystal
 monochrome: crystal
@@ -115,7 +125,7 @@ clean: tidy
 	$(MAKE) clean -C tools/
 
 tidy:
-	$(RM) $(crystal_obj) $(crystal_vc_obj) $(wildcard $(NAME)-*.gbc) $(wildcard $(NAME)-*.pocket) $(wildcard $(NAME)-*.bsp) \
+	$(RM) $(diamond_obj) $(pearl_obj) $(crystal_vc_obj) $(wildcard $(NAME)-*.gbc) $(wildcard $(NAME)-*.pocket) $(wildcard $(NAME)-*.bsp) \
 		$(wildcard $(NAME)-*.map) $(wildcard $(NAME)-*.sym) $(wildcard $(NAME)-*.patch) rgbdscheck.o
 
 freespace: crystal tools/bankends
@@ -135,9 +145,14 @@ endif
 
 preinclude_deps := includes.asm $(shell tools/scan_includes includes.asm)
 
-define DEP
+define DEP_D
 $1: $2 $$(shell tools/scan_includes $2) $(preinclude_deps) | rgbdscheck.o
-	$Q$$(RGBDS)rgbasm $$(RGBASM_FLAGS) -L -o $$@ $$<
+	$Q$$(RGBDS)rgbasm $$(RGBASM_FLAGS_D) -L -o $$@ $$<
+endef
+
+define DEP_P
+$1: $2 $$(shell tools/scan_includes $2) $(preinclude_deps) | rgbdscheck.o
+	$Q$$(RGBDS)rgbasm $$(RGBASM_FLAGS_P) -L -o $$@ $$<
 endef
 
 define VCDEP
@@ -146,7 +161,8 @@ $1: $2 $$(shell tools/scan_includes $2) $(preinclude_deps) | rgbdscheck.o
 endef
 
 ifeq (,$(filter clean tidy tools,$(MAKECMDGOALS)))
-$(foreach obj, $(crystal_obj), $(eval $(call DEP,$(obj),$(obj:.o=.asm))))
+$(foreach obj, $(diamond_obj), $(eval $(call DEP_D,$(obj),$(obj:_diamond.o=.asm))))
+$(foreach obj, $(pearl_obj), $(eval $(call DEP_P,$(obj),$(obj:_pearl.o=.asm))))
 $(foreach obj, $(crystal_vc_obj), $(eval $(call VCDEP,$(obj),$(obj:_vc.o=.asm))))
 endif
 
@@ -154,10 +170,15 @@ $(ROM_NAME).patch: $(ROM_NAME)_vc.gbc $(ROM_NAME).$(EXTENSION) vc.patch.template
 	tools/make_patch $(ROM_NAME)_vc.sym $^ $@
 
 .$(EXTENSION): tools/bankends
-$(ROM_NAME).$(EXTENSION): $(crystal_obj) layout.link
-	$Q$(RGBDS)rgblink $(RGBLINK_FLAGS) -l layout.link -o $@ $(filter %.o,$^)
-	$Q$(RGBDS)rgbfix $(RGBFIX_FLAGS) $@
-	$Qtools/bankends -q $(ROM_NAME).map >&2
+pokeadamantdiamond.$(EXTENSION): $(diamond_obj) layout.link
+	$Q$(RGBDS)rgblink $(RGBLINK_FLAGS_D) -l layout.link -o $@ $(filter %.o,$^)
+	$Q$(RGBDS)rgbfix $(RGBFIX_FLAGS_D) $@
+	$Qtools/bankends -q $(ROM_NAME_D).map >&2
+	
+pokelustrouspearl.$(EXTENSION): $(pearl_obj) layout.link
+	$Q$(RGBDS)rgblink $(RGBLINK_FLAGS_P) -l layout.link -o $@ $(filter %.o,$^)
+	$Q$(RGBDS)rgbfix $(RGBFIX_FLAGS_P) $@
+	$Qtools/bankends -q $(ROM_NAME_P).map >&2
 
 $(ROM_NAME)_vc.gbc: $(crystal_vc_obj) layout.link
 	$Q$(RGBDS)rgblink $(RGBLINK_VC_FLAGS) -l layout.link -o $@ $(filter %.o,$^)
@@ -259,6 +280,8 @@ gfx/type_chart/bg.2bpp: tools/gfx += --remove-duplicates --remove-xflip --remove
 gfx/type_chart/bg0.2bpp: gfx/type_chart/bg.2bpp.vram1p gfx/type_chart/bg.2bpp.vram0p ; $Qcat $^ > $@
 gfx/type_chart/ob.2bpp: tools/gfx += --interleave --png=$<
 
+gfx/title/logo_diamond.2bpp: tools/gfx += --remove-duplicates --remove-whitespace
+gfx/title/logo_pearl.2bpp: tools/gfx += --remove-duplicates --remove-whitespace
 
 gfx/pokemon/%/front.animated.2bpp: gfx/pokemon/%/front.2bpp gfx/pokemon/%/front.dimensions
 	$Qtools/pokemon_animation_graphics -o $@ $^
