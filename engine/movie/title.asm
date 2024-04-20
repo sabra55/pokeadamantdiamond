@@ -38,7 +38,7 @@ _TitleScreen:
 ; BG Map 1:
 
 ; line 0 (copyright)
-	hlbgcoord 0, 0, vBGMap1
+	hlbgcoord 0, 20
 	ld bc, BG_MAP_WIDTH
 	ld a, 7 ; palette
 	rst ByteFill
@@ -73,17 +73,21 @@ _TitleScreen:
 	ld a, 6
 	rst ByteFill
 
-; 'CRYSTAL VERSION'
-	hlbgcoord 5, 9
-	ld bc, NAME_LENGTH ; length of version text
-	ld a, 1
+; version-specific logo uses bank 2
+	hlbgcoord 0, 10
+if DEF(_DIAMOND)
+	ld bc, 6 * BG_MAP_WIDTH
+endc
+if DEF(_PEARL)
+	ld bc, 8 * BG_MAP_WIDTH
+endc
+	ld a, VRAM_BANK_1 | 1
 	rst ByteFill
 
-; Suicune gfx
-	hlbgcoord 0, 12
-	ld bc, 6 * BG_MAP_WIDTH ; the rest of the screen
-	ld a, 8
-	rst ByteFill
+; Decompress version-specific logo
+	ld hl, TitleLogoGFX
+	ld de, vTiles2
+	call Decompress
 
 ; Back to VRAM bank 0
 	xor a
@@ -93,16 +97,12 @@ _TitleScreen:
 	ld hl, TitlePokemonGFX
 	ld de, vTiles1
 	call Decompress
-
-; Decompress version-specific logo
-	ld hl, TitleLogoGFX
-	ld de, vTiles2
-	call Decompress
-
-; Decompress background crystal
-	ld hl, TitleCrystalGFX
-	ld de, vTiles0
-	call Decompress
+	
+; get PRESS START text
+	lb bc, BANK(TitleScreenPressStart), 20
+	ld hl, vTiles2 tile $20
+	ld de, TitleScreenPressStart
+	call Copy1bpp
 
 ; Clear screen tiles
 	hlbgcoord 0, 0
@@ -115,10 +115,19 @@ _TitleScreen:
 	lb bc, 7, SCREEN_WIDTH
 	lb de, $80, SCREEN_WIDTH
 	call DrawTitleGraphic
+	
+; Draw version logo
+	call PutVersionLogo
 
+; Draw Press Start text
+	hlbgcoord 0, 20
+	lb bc, 6, 18 - DEF(_DIAMOND)
+	lb de, $20, 0
+	call DrawTitleGraphic
+	
 ; Draw copyright text
-	hlbgcoord 4, 0, vBGMap1
-	lb bc, 1, 13
+	hlbgcoord 0, 20
+	lb bc, 0, 20
 	lb de, $0c, 0
 	call DrawTitleGraphic
 
@@ -128,13 +137,6 @@ IF DEF(FAITHFUL)
 	lb de, $19, 0
 	call DrawTitleGraphic
 endc
-
-; Initialize running Suicune?
-	ld d, $0
-	call LoadSuicuneFrame
-
-; Initialize background crystal
-	call InitializeBackground
 
 ; Save WRAM bank
 	ldh a, [rSVBK]
@@ -160,41 +162,41 @@ endc
 
 ; LY/SCX trickery starts here
 
-	push af
-	ld a, BANK(wLYOverrides)
-	ldh [rSVBK], a
+	;push af
+	;ld a, BANK(wLYOverrides)
+	;ldh [rSVBK], a
 
 ; Make sure the LYOverrides buffer is empty
-	ld hl, wLYOverrides
-	xor a
-	ld bc, wLYOverridesEnd - wLYOverrides
-	rst ByteFill
+	;ld hl, wLYOverrides
+	;xor a
+	;ld bc, wLYOverridesEnd - wLYOverrides
+	;rst ByteFill
 
 ; Let LCD Stat know we're messing around with SCX
-	ld hl, rIE
-	set LCD_STAT, [hl]
-	ld a, rSCX - rJOYP
-	ldh [hLCDCPointer], a
+	;ld hl, rIE
+	;set LCD_STAT, [hl]
+	;ld a, rSCX - rJOYP
+	;ldh [hLCDCPointer], a
 
-	pop af
-	ldh [rSVBK], a
+	;pop af
+	;ldh [rSVBK], a
 
 ; Reset audio
 	call ChannelsOff
 	call EnableLCD
 
-	ldh a, [rLCDC]
-	set rLCDC_SPRITE_SIZE, a
-	ldh [rLCDC], a
+	;ldh a, [rLCDC]
+	;set rLCDC_SPRITE_SIZE, a
+	;ldh [rLCDC], a
 
-	ld a, +112
-	ldh [hSCX], a
-	ld a, 8
-	ldh [hSCY], a
-	ld a, 7
-	ldh [hWX], a
-	ld a, -112
-	ldh [hWY], a
+	;ld a, +112
+	;ldh [hSCX], a
+	;ld a, 8
+	;ldh [hSCY], a
+	;ld a, 7
+	;ldh [hWX], a
+	;ld a, -112
+	;ldh [hWY], a
 
 	ld a, $1
 	ldh [hCGBPalUpdate], a
@@ -204,11 +206,14 @@ endc
 
 	xor a
 	ld [wBGPals1 palette 0 + 2], a
+	
+	ld a, 24
+	ld [hSCY], a
 
 ; Play starting sound effect
 	call SFXChannelsOff
 	ld de, SFX_TITLE_SCREEN_ENTRANCE
-	jmp PlaySFX
+	jp PlaySFX
 
 SuicuneFrameIterator:
 	ld hl, wBGPals1 palette 0 + 2
@@ -358,8 +363,18 @@ AnimateTitleCrystal:
 	inc hl
 	dec c
 	jr nz, .loop
-
 	ret
+	
+PutVersionLogo:
+	hlcoord 0, 10
+	ld de, TitleTilemapGFX
+.loop:
+	ld a, [de]
+	cp $80 ; end
+	ret z
+	ld [hli], a
+	inc de
+	jr .loop
 
 TitleSuicuneGFX:
 INCBIN "gfx/title/suicune.2bpp.lz"
@@ -375,8 +390,21 @@ if DEF(_PEARL)
 INCBIN "gfx/title/logo_pearl.2bpp.lz"
 endc
 
+TitleTilemapGFX:
+if DEF(_DIAMOND)
+INCBIN "gfx/title/logo_diamond.tilemap"
+	db $80 ; end
+endc
+if DEF(_PEARL)
+INCBIN "gfx/title/logo_pearl.tilemap"
+	db $80 ; end
+endc
+
 TitleCrystalGFX:
 INCBIN "gfx/title/crystal.2bpp.lz"
 
 TitleScreenPalettes:
 INCLUDE "gfx/title/title.pal"
+
+TitleScreenPressStart::
+INCBIN "gfx/title/press_start.1bpp"

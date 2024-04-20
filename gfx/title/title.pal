@@ -1,14 +1,22 @@
 ; BG
 if !DEF(MONOCHROME)
 	RGB 00, 00, 00
-	RGB 19, 00, 00
-	RGB 15, 08, 31
-	RGB 15, 08, 31
-
 	RGB 00, 00, 00
-	RGB 31, 31, 31
-	RGB 15, 16, 31
-	RGB 31, 01, 13
+	RGB 00, 00, 00
+	RGB 31, 00, 00
+	
+if DEF(_DIAMOND)
+	RGB 00, 00, 00
+	RGB 00, 24, 31
+	RGB 00, 08, 12
+	RGB 00, 06, 10
+endc
+if DEF(_PEARL)
+	RGB 00, 00, 00
+	RGB 28, 00, 31
+	RGB 11, 04, 13
+	RGB 07, 03, 08
+endc
 
 	RGB 00, 00, 00
 	RGB 07, 07, 07

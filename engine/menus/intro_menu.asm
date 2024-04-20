@@ -1142,7 +1142,7 @@ RunTitleScreen:
 	bit 7, a
 	jr nz, .done_title
 	call TitleScreenScene
-	farcall SuicuneFrameIterator
+	; farcall SuicuneFrameIterator
 	call DelayFrame
 	and a
 	ret
@@ -1161,34 +1161,6 @@ TitleScreenScene:
 	dw TitleScreenEnd
 
 TitleScreenEntrance:
-
-; Animate the logo:
-; Move each line by 4 pixels until our count hits 0.
-	ldh a, [hSCX]
-	and a
-	jr z, .done
-	sub 4
-	ldh [hSCX], a
-
-; Lay out a base (all lines scrolling together).
-	ld e, a
-	ld hl, wLYOverrides
-	ld bc, 8 * 10 ; logo height
-	rst ByteFill
-
-; Reversed signage for every other line's position.
-; This is responsible for the interlaced effect.
-	ld a, e
-	cpl
-	inc a
-
-	ld b, 8 * 10 / 2 ; logo height / 2
-	ld hl, wLYOverrides + 1
-.loop
-	ld [hli], a
-	inc hl
-	dec b
-	jr nz, .loop
 
 	farjp AnimateTitleCrystal
 
